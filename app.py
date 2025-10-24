@@ -11,6 +11,7 @@ Streamlit app: Wild Capital — Contract first-page filler
 
 import os
 import json
+from html import escape as html_escape
 from typing import Any, Dict, List, Optional
 
 import streamlit as st
@@ -217,7 +218,7 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
         for u in bngs:
             habitat = u.get("habitat_name") or u.get("habitat") or "habitat"
             units = u.get("units_required") or u.get("units") or ""
-            bng_html += f"<li>{units} {st.escape(habitat)}</li>"
+            bng_html += f"<li>{units} {html_escape(habitat)}</li>"
     else:
         bng_html = "<li>________________________ distinctiveness ________________________ biodiversity net gain offsite units;</li><li>________________________</li>"
 
@@ -225,7 +226,7 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
     <html>
     <head>
       <meta charset="utf-8"/>
-      <title>Contract preview — {st.escape(contract.get('application_reference') or '')}</title>
+      <title>Contract preview — {html_escape(contract.get('application_reference') or '')}</title>
       <style>
         body {{ font-family: serif; margin: 28px; color: #111; }}
         h2 {{ text-align: center; }}
@@ -244,42 +245,42 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
         WILD CAPITAL 1 LTD (company number 14747595) of Lynton House, 7-12 Tavistock Square, London, WC1H 9BQ (“Wild Capital”); and
       </p>
       <p>
-        <strong>{st.escape(contract.get('developer_name') or '')}</strong> (company number {st.escape(contract.get('developer_company_number') or '')}) whose registered office is at {st.escape(contract.get('development_land') or '')} (“Developer”).
+        <strong>{html_escape(contract.get('developer_name') or '')}</strong> (company number {html_escape(contract.get('developer_company_number') or '')}) whose registered office is at {html_escape(contract.get('development_land') or '')} (“Developer”).
       </p>
 
       <h4>Application Reference Number</h4>
-      <p>{st.escape(answers.get('planningRef') or contract.get('application_reference') or '')}</p>
+      <p>{html_escape(answers.get('planningRef') or contract.get('application_reference') or '')}</p>
 
       <h4>BNG Units</h4>
-      <p>From the Wild {st.escape(contract.get('wild_capital_habitat_bank') or '')} Habitat Bank:</p>
+      <p>From the Wild {html_escape(contract.get('wild_capital_habitat_bank') or '')} Habitat Bank:</p>
       <ol>
         {bng_html}
       </ol>
 
       <h4>Development Land</h4>
-      <p>{st.escape(contract.get('development_land') or '')}</p>
+      <p>{html_escape(contract.get('development_land') or '')}</p>
 
       <h4>Wild Capital Habitat Bank(s)</h4>
-      <p>{st.escape(contract.get('wild_capital_habitat_bank') or '')}</p>
+      <p>{html_escape(contract.get('wild_capital_habitat_bank') or '')}</p>
 
       <h4>Conservation Covenant</h4>
-      <p>means a conservation covenant dated {st.escape(contract.get('conservation_covenant_date') or '')} and made between {st.escape(contract.get('developer_name') or '')} in respect of the Wild Capital Habitat Bank(s).</p>
+      <p>means a conservation covenant dated {html_escape(contract.get('conservation_covenant_date') or '')} and made between {html_escape(contract.get('developer_name') or '')} in respect of the Wild Capital Habitat Bank(s).</p>
 
       <h4>Purchase Price</h4>
-      <p>means {st.escape(contract.get('purchase_price') or contract.get('total_with_admin') or '')} (exclusive of VAT)</p>
+      <p>means {html_escape(contract.get('purchase_price') or contract.get('total_with_admin') or '')} (exclusive of VAT)</p>
 
       <h4>Reservation Fee</h4>
-      <p>{st.escape(contract.get('reservation_fee') or '')}</p>
+      <p>{html_escape(contract.get('reservation_fee') or '')}</p>
 
       <h4>Transaction Fee</h4>
-      <p>{st.escape(contract.get('transaction_fee') or '')}</p>
+      <p>{html_escape(contract.get('transaction_fee') or '')}</p>
 
       <h4>Longstop Date</h4>
-      <p>{st.escape(contract.get('longstop_date') or '')}</p>
+      <p>{html_escape(contract.get('longstop_date') or '')}</p>
 
       <hr/>
 
-      <p class="small">Preferred contract type chosen: <strong>{st.escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else '')}</strong></p>
+      <p class="small">Preferred contract type chosen: <strong>{html_escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else '')}</strong></p>
 
       <h4>Signatures</h4>
       <p>Signed for and on behalf of Wild Capital:……………..……………………………………………….</p>
@@ -288,14 +289,14 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
       <div class="section small">
         <strong>Important dates filled by user (not stored):</strong>
         <ul>
-          <li>Expected Determination date: {st.escape(answers.get('determinationDate') or '')}</li>
-          <li>BNG discharge hoped date: {st.escape(answers.get('dischargeDate') or '')}</li>
+          <li>Expected Determination date: {html_escape(answers.get('determinationDate') or '')}</li>
+          <li>BNG discharge hoped date: {html_escape(answers.get('dischargeDate') or '')}</li>
         </ul>
       </div>
 
       <div class="section small">
         <strong>Authorised signatory</strong>
-        <p>{st.escape(answers.get('authorisedName') or '')} — {st.escape(answers.get('authorisedEmail') or '')}</p>
+        <p>{html_escape(answers.get('authorisedName') or '')} — {html_escape(answers.get('authorisedEmail') or '')}</p>
       </div>
 
       <div class="muted small">Preview generated from contract data and the answers you provided. These answers are not stored by this application.</div>
