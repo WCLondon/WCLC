@@ -206,33 +206,54 @@ def fetch_submission_by_ref(conn_type: str, conn: Any, ref: str, table_name: str
 
 def render_contract_html(contract: Dict, answers: Dict) -> str:
     """
-    Produce an HTML snippet for the first page with the contract fields + answers.
-    Keep it simple, printable by browser Print -> Save as PDF.
-    Formatted to match legal contract standards.
+    Produce a complete BNG Allocation Agreement HTML document based on the official template.
+    Matches the structure and content of BNG_Allocation_Agreement_Template.md
     """
-    def show(val):
-        return val if val not in (None, "", []) else "&nbsp;________________________&nbsp;"
-    
     # Get today's date in proper format for legal contracts
     today_date = datetime.now().strftime("%d %B %Y")
-
-    # bng units list items
-    bng_html = ""
+    
+    # Helper function to show placeholder or value
+    def show(val, placeholder="[●]"):
+        if val and val not in (None, "", []):
+            return html_escape(str(val))
+        return placeholder
+    
+    # Extract contract values with fallbacks
+    developer_name = contract.get('developer_name') or contract.get('client_name') or '[Developer]'
+    developer_company_number = contract.get('developer_company_number') or '[●]'
+    development_land = contract.get('development_land') or contract.get('site_location') or '[●]'
+    app_ref = answers.get('planningRef') or contract.get('application_reference') or '[●]'
+    habitat_bank = contract.get('wild_capital_habitat_bank') or '[●]'
+    
+    # Build BNG Units list
+    bng_units_html = ""
     bngs = contract.get("bng_units") or []
     if bngs:
-        for u in bngs:
+        for idx, u in enumerate(bngs):
             habitat = u.get("habitat_name") or u.get("habitat") or "habitat"
-            units = u.get("units_required") or u.get("units") or ""
-            bng_html += f"<li style='margin-bottom: 8px;'>{units} {html_escape(habitat)}</li>"
+            units = u.get("units_required") or u.get("units") or "[●]"
+            letter = chr(97 + idx)  # a, b, c, etc.
+            bng_units_html += f"<li>({letter}) <strong>{show(units)} {show(habitat)}</strong> biodiversity net gain <strong>offsite units</strong>;</li>"
     else:
-        bng_html = "<li style='margin-bottom: 8px;'>________________________ distinctiveness ________________________ biodiversity net gain offsite units;</li><li style='margin-bottom: 8px;'>________________________</li>"
-
+        bng_units_html = "<li>(a) <strong>[medium] distinctiveness [grassland]</strong> biodiversity net gain <strong>offsite units</strong>;</li><li>(b) <strong>[insert relevant units and distinctiveness]</strong>.</li>"
+    
+    conservation_covenant_date = contract.get('conservation_covenant_date') or '[●]'
+    purchase_price = contract.get('purchase_price') or contract.get('total_with_admin') or '[●]'
+    reservation_fee = contract.get('reservation_fee') or '[●]'
+    transaction_fee = contract.get('transaction_fee') or '[●]'
+    longstop_date = contract.get('longstop_date') or '[●]'
+    
+    # Determine contract type for toggles
+    is_buy_now = answers.get('contractType') == 'buyNow'
+    schedule_applies = "No" if is_buy_now else "Yes"
+    clause_2_applies = "Yes" if is_buy_now else "No"
+    
     html = f"""
     <!DOCTYPE html>
     <html>
     <head>
       <meta charset="utf-8"/>
-      <title>Allocation Agreement — {html_escape(contract.get('application_reference') or '')}</title>
+      <title>BNG Allocation Agreement — {show(app_ref, '')}</title>
       <style>
         @page {{
           size: A4;
@@ -241,7 +262,7 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
         body {{
           font-family: 'Times New Roman', Times, serif;
           font-size: 12pt;
-          line-height: 1.6;
+          line-height: 1.5;
           margin: 0;
           padding: 20px;
           color: #000;
@@ -250,69 +271,63 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
         }}
         h1 {{
           text-align: center;
-          font-size: 16pt;
-          font-weight: bold;
-          margin: 20px 0;
-          text-transform: uppercase;
-        }}
-        h2 {{
-          text-align: center;
           font-size: 14pt;
           font-weight: bold;
-          margin: 15px 0;
+          margin: 20px 0;
+        }}
+        h2 {{
+          font-size: 12pt;
+          font-weight: bold;
+          margin: 20px 0 10px 0;
+          text-transform: uppercase;
         }}
         h3 {{
           font-size: 12pt;
           font-weight: bold;
-          margin: 15px 0 10px 0;
-          text-decoration: underline;
+          margin: 15px 0 8px 0;
         }}
         h4 {{
           font-size: 12pt;
-          font-weight: bold;
-          margin: 12px 0 6px 0;
+          font-weight: normal;
+          font-style: italic;
+          margin: 10px 0 5px 0;
         }}
         p {{
-          margin: 8px 0;
+          margin: 6px 0;
           text-align: justify;
         }}
-        .defined-term {{
-          font-weight: bold;
-        }}
-        .party-details {{
-          margin-left: 40px;
-        }}
-        ol {{
+        ul, ol {{
           margin: 8px 0;
           padding-left: 30px;
         }}
         li {{
-          margin-bottom: 6px;
+          margin-bottom: 4px;
         }}
-        .signature-block {{
-          margin-top: 30px;
-          page-break-inside: avoid;
-        }}
-        .signature-line {{
-          margin: 20px 0;
-          border-bottom: 1px solid #000;
-          width: 60%;
-          display: inline-block;
-        }}
-        .metadata {{
-          margin-top: 30px;
-          padding-top: 20px;
-          border-top: 2px solid #ccc;
-          font-size: 10pt;
-          color: #666;
-        }}
-        .metadata-section {{
-          margin: 10px 0;
+        strong {{
+          font-weight: bold;
         }}
         hr {{
           border: none;
           border-top: 1px solid #000;
           margin: 20px 0;
+        }}
+        .signature-block {{
+          margin: 15px 0;
+        }}
+        .signature-line {{
+          display: inline-block;
+          width: 200px;
+          border-bottom: 1px solid #000;
+        }}
+        .indent {{
+          margin-left: 30px;
+        }}
+        .metadata {{
+          margin-top: 40px;
+          padding-top: 20px;
+          border-top: 2px solid #ccc;
+          font-size: 10pt;
+          color: #666;
         }}
         @media print {{
           body {{
@@ -325,184 +340,284 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
       </style>
     </head>
     <body>
-      <h1>Allocation Agreement</h1>
+      <h1><strong>BNG ALLOCATION AGREEMENT</strong></h1>
       
-      <h2>This Contract is dated {today_date}</h2>
-
-      <p>and made on the following terms and incorporating the Conditions and, where Applicable, the Schedule:</p>
-
-      <h3>Parties</h3>
+      <p><strong>This Contract is dated {today_date}</strong> and is made on the following terms <strong>and incorporating the Conditions and, where applicable, the Schedule.</strong></p>
       
-      <p class="party-details">
-        <span class="defined-term">WILD CAPITAL 1 LTD</span> (company number 14747595) of Lynton House, 7-12 Tavistock Square, London, WC1H 9BQ ("<span class="defined-term">Wild Capital</span>"); and
-      </p>
-      
-      <p class="party-details">
-        <span class="defined-term">{html_escape(contract.get('developer_name') or '________________________')}</span> (company number {html_escape(contract.get('developer_company_number') or '________________________')}) whose registered office is at {html_escape(contract.get('development_land') or '________________________')} ("<span class="defined-term">Developer</span>").
-      </p>
-
-      <h3>Defined Terms</h3>
-
-      <h4>Application Reference Number</h4>
-      <p>{html_escape(answers.get('planningRef') or contract.get('application_reference') or '________________________')}</p>
-
-      <h4>BNG Units</h4>
-      <p>From the Wild Capital {html_escape(contract.get('wild_capital_habitat_bank') or '________________________')} Habitat Bank:</p>
-      <ol>
-        {bng_html}
-      </ol>
-
-      <h4>Development Land</h4>
-      <p>{html_escape(contract.get('development_land') or '________________________')}</p>
-
-      <h4>Wild Capital Habitat Bank(s)</h4>
-      <p>{html_escape(contract.get('wild_capital_habitat_bank') or '________________________')}</p>
-
-      <h4>Conservation Covenant</h4>
-      <p>means a conservation covenant dated {html_escape(contract.get('conservation_covenant_date') or '________________________')} and made between {html_escape(contract.get('developer_name') or '________________________')} in respect of the Wild Capital Habitat Bank(s).</p>
-
-      <h4>Purchase Price</h4>
-      <p>means {html_escape(contract.get('purchase_price') or contract.get('total_with_admin') or '________________________')} (exclusive of VAT)</p>
-
-      <h4>Reservation Fee</h4>
-      <p>{html_escape(contract.get('reservation_fee') or '________________________')}</p>
-
-      <h4>Transaction Fee</h4>
-      <p>{html_escape(contract.get('transaction_fee') or '________________________')}</p>
-
-      <h4>Longstop Date</h4>
-      <p>{html_escape(contract.get('longstop_date') or '________________________')}</p>
-
-      <div class="signature-block">
-        <h3>Signatures</h3>
-        
-        <p>Signed for and on behalf of <span class="defined-term">Wild Capital</span>:</p>
-        <p><span class="signature-line">&nbsp;</span></p>
-        
-        <p>Signed for and on behalf of the <span class="defined-term">Developer</span>:</p>
-        <p><span class="signature-line">&nbsp;</span></p>
-      </div>
-
-      <div class="metadata">
-        <div class="metadata-section">
-          <strong>Contract Type Selected:</strong> {html_escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else 'Not specified')}
-        </div>
-        
-        <div class="metadata-section">
-          <strong>Important Dates (for reference only):</strong>
-          <ul style="margin: 5px 0; padding-left: 20px;">
-            <li>Expected Determination date: {html_escape(answers.get('determinationDate') or 'Not specified')}</li>
-            <li>BNG discharge hoped date: {html_escape(answers.get('dischargeDate') or 'Not specified')}</li>
-          </ul>
-        </div>
-
-        <div class="metadata-section">
-          <strong>Authorised Signatory:</strong>
-          <p style="margin: 5px 0;">{html_escape(answers.get('authorisedName') or 'Not specified')} — {html_escape(answers.get('authorisedEmail') or 'Not specified')}</p>
-        </div>
-
-        <div class="metadata-section" style="margin-top: 15px; font-style: italic;">
-          <p>Preview generated on {today_date} from contract data and the answers you provided. The metadata section above is for reference only and not part of the legal contract.</p>
-        </div>
-      </div>
-    </body>
-    </html>
-    """
-    return html
-
-
-    def show(val):
-        return val if val not in (None, "", []) else "&nbsp;________________________&nbsp;"
-
-    # bng units list items
-    bng_html = ""
-    bngs = contract.get("bng_units") or []
-    if bngs:
-        for u in bngs:
-            habitat = u.get("habitat_name") or u.get("habitat") or "habitat"
-            units = u.get("units_required") or u.get("units") or ""
-            bng_html += f"<li>{units} {html_escape(habitat)}</li>"
-    else:
-        bng_html = "<li>________________________ distinctiveness ________________________ biodiversity net gain offsite units;</li><li>________________________</li>"
-
-    html = f"""
-    <html>
-    <head>
-      <meta charset="utf-8"/>
-      <title>Contract preview — {html_escape(contract.get('application_reference') or '')}</title>
-      <style>
-        body {{ font-family: serif; margin: 28px; color: #111; }}
-        h2 {{ text-align: center; }}
-        .section {{ margin-bottom: 14px; }}
-        .small {{ font-size: 0.95em; color: #333; }}
-        .muted {{ color: #666; font-size: 0.9em; }}
-      </style>
-    </head>
-    <body>
-      <h2>This Contract is dated {show('')}</h2>
-
-      <p>and made on the following terms and incorporating the Conditions and, where Applicable, the Schedule:</p>
-
-      <h3>Parties</h3>
-      <p>
-        WILD CAPITAL 1 LTD (company number 14747595) of Lynton House, 7-12 Tavistock Square, London, WC1H 9BQ (“Wild Capital”); and
-      </p>
-      <p>
-        <strong>{html_escape(contract.get('developer_name') or '')}</strong> (company number {html_escape(contract.get('developer_company_number') or '')}) whose registered office is at {html_escape(contract.get('development_land') or '')} (“Developer”).
-      </p>
-
-      <h4>Application Reference Number</h4>
-      <p>{html_escape(answers.get('planningRef') or contract.get('application_reference') or '')}</p>
-
-      <h4>BNG Units</h4>
-      <p>From the Wild {html_escape(contract.get('wild_capital_habitat_bank') or '')} Habitat Bank:</p>
-      <ol>
-        {bng_html}
-      </ol>
-
-      <h4>Development Land</h4>
-      <p>{html_escape(contract.get('development_land') or '')}</p>
-
-      <h4>Wild Capital Habitat Bank(s)</h4>
-      <p>{html_escape(contract.get('wild_capital_habitat_bank') or '')}</p>
-
-      <h4>Conservation Covenant</h4>
-      <p>means a conservation covenant dated {html_escape(contract.get('conservation_covenant_date') or '')} and made between {html_escape(contract.get('developer_name') or '')} in respect of the Wild Capital Habitat Bank(s).</p>
-
-      <h4>Purchase Price</h4>
-      <p>means {html_escape(contract.get('purchase_price') or contract.get('total_with_admin') or '')} (exclusive of VAT)</p>
-
-      <h4>Reservation Fee</h4>
-      <p>{html_escape(contract.get('reservation_fee') or '')}</p>
-
-      <h4>Transaction Fee</h4>
-      <p>{html_escape(contract.get('transaction_fee') or '')}</p>
-
-      <h4>Longstop Date</h4>
-      <p>{html_escape(contract.get('longstop_date') or '')}</p>
-
       <hr/>
-
-      <p class="small">Preferred contract type chosen: <strong>{html_escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else '')}</strong></p>
-
-      <h4>Signatures</h4>
-      <p>Signed for and on behalf of Wild Capital:……………..……………………………………………….</p>
-      <p>Signed for and on behalf of the Developer:…………………………………………………………..</p>
-
-      <div class="section small">
-        <strong>Important dates filled by user (not stored):</strong>
+      
+      <h2>PARTIES</h2>
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li><strong>WILD CAPITAL 1 LTD</strong> (company number <strong>14747595</strong>) of <strong>Lynton House, 7–12 Tavistock Square, London, WC1H 9BQ</strong> ("<strong>Wild Capital</strong>").</li>
+        <li><strong>{show(developer_name)}</strong> (company number <strong>{show(developer_company_number)}</strong>) whose registered office is at <strong>{show(development_land)}</strong> ("<strong>Developer</strong>").</li>
+      </ul>
+      
+      <p><strong>Application Reference Number:</strong> <strong>{show(app_ref)}</strong></p>
+      
+      <p><strong>BNG Units</strong> (from the <strong>Wild {show(habitat_bank)} Habitat Bank</strong>):</p>
+      <ul style="list-style-type: none; padding-left: 20px;">
+        {bng_units_html}
+      </ul>
+      
+      <p><strong>Development Land:</strong> <strong>{show(development_land)}</strong></p>
+      
+      <p><strong>Wild Capital Habitat Bank(s):</strong> <strong>{show(habitat_bank)}</strong></p>
+      
+      <p><strong>Conservation Covenant</strong> means a conservation covenant dated <strong>{show(conservation_covenant_date)}</strong> and made between <strong>{show(developer_name)}</strong> in respect of the <strong>Wild Capital Habitat Bank(s)</strong>.</p>
+      
+      <p><strong>Purchase Price</strong> means <strong>{show(purchase_price)}</strong> <strong>(exclusive of VAT)</strong> <strong>[and Clause 2.1 is not applicable]</strong>.</p>
+      
+      <p><strong>Reservation Fee:</strong> <strong>{show(reservation_fee)}</strong> <strong>(exclusive of VAT)</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
+      
+      <p><strong>Transaction fee:</strong> <strong>{show(transaction_fee)}</strong> <strong>(exclusive of VAT)</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
+      
+      <p><strong>Longstop Date:</strong> <strong>{show(longstop_date)}</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
+      
+      <p><strong>Applicability toggles (tick/strike one in final copy):</strong></p>
+      <ul style="list-style-type: none; padding-left: 0;">
+        <li>- The terms of the <strong>Schedule</strong> apply to this agreement — <strong>{schedule_applies}</strong></li>
+        <li>- The terms of <strong>Clause 2.1 and 2.2</strong> of the Conditions apply to this agreement — <strong>{clause_2_applies}</strong></li>
+      </ul>
+      
+      <hr/>
+      
+      <h2>SIGNATURES</h2>
+      
+      <div class="signature-block">
+        <p>Signed for and on behalf of <strong>WILD CAPITAL 1 LTD</strong><br/>
+        Name: <span class="signature-line">&nbsp;</span> &nbsp; Title: <span class="signature-line">&nbsp;</span> &nbsp; Date: <span class="signature-line">&nbsp;</span></p>
+      </div>
+      
+      <div class="signature-block">
+        <p>Signed for and on behalf of <strong>{show(developer_name)}</strong><br/>
+        Name: <span class="signature-line">&nbsp;</span> &nbsp; Title: <span class="signature-line">&nbsp;</span> &nbsp; Date: <span class="signature-line">&nbsp;</span></p>
+      </div>
+      
+      <hr style="page-break-after: always;"/>
+      
+      <h1><strong>CONDITIONS</strong></h1>
+      
+      <h2>BACKGROUND</h2>
+      <p>A. Wild Capital operates habitat banks and is able to produce biodiversity net gain offsite units ("<strong>BNG Units</strong>").</p>
+      <p>B. Under the <strong>Environment Act 2021</strong>, developments must deliver a minimum <strong>10% biodiversity net gain</strong> and the developer must evidence BNG to the <strong>local planning authority</strong> (the "<strong>Determining Authority</strong>").</p>
+      <p>C. The Developer wishes to allocate BNG Units to the <strong>Development Land</strong>.</p>
+      <p>D. Wild Capital agrees to allocate BNG Units on the terms of this Agreement.</p>
+      
+      <hr/>
+      
+      <h2>AGREED TERMS</h2>
+      
+      <h3>1. DEFINITIONS and Interpretations</h3>
+      <p>In this Agreement the following terms have the meanings set out below:</p>
+      
+      <p><strong>Application</strong> means the application associated with the <strong>Application Reference Number</strong> on the front sheet.</p>
+      
+      <p><strong>BNG Capacity</strong> means the area of the <strong>Mitigation Site</strong> allocated on the <strong>Gain Site Register</strong>.</p>
+      
+      <p><strong>BNG Units</strong> means the offsite units specified on the front sheet (or such other habitat types of <strong>equivalent or higher distinctiveness</strong>) calculated using the <strong>BNG Metric</strong>, taking into account the <strong>Spatial Risk Multiplier</strong> and <strong>Trading Rules</strong> as set out in the <strong>Statutory Biodiversity Metric User Guide</strong> (DEFRA, as updated from time to time, including the version updated <strong>3 July 2025</strong>).</p>
+      
+      <p><strong>BNG Metric</strong> means the statutory biodiversity metric published by <strong>DEFRA</strong> (or any replacement metric).</p>
+      
+      <p><strong>Conservation Covenant</strong> has the meaning given on the front sheet and governs creation and management of BNG Units at the <strong>Mitigation Site</strong>.</p>
+      
+      <p><strong>Determining Authority</strong> means the relevant local planning authority for the <strong>Development Land</strong>.</p>
+      
+      <p><strong>Development Land</strong> means the land identified on the front sheet.</p>
+      
+      <p><strong>Electronic Payment</strong> means payment in same‑day cleared funds to the payee's nominated bank account.</p>
+      
+      <p><strong>Exchange Payment</strong> means <strong>£1.00</strong> <strong>(exclusive of VAT)</strong> payable by the Developer to Wild Capital on the date of this Agreement.</p>
+      
+      <p><strong>Gain Site Register</strong> means the <strong>Biodiversity Gain Site Register</strong> maintained pursuant to <strong>section 100 of the Environment Act 2021</strong>.</p>
+      
+      <p><strong>Habitat Bank</strong> means any Wild Capital habitat creation and management site from which BNG Units are produced.</p>
+      
+      <p><strong>Mitigation Site</strong> means the land comprising the relevant <strong>Habitat Bank</strong>.</p>
+      
+      <p><strong>Notice of Allocation</strong> means the formal notice to the Determining Authority confirming allocation of BNG Units to the <strong>Development Land</strong> in accordance with the <strong>Conservation Covenant</strong> and the <strong>BNG Metric</strong>.</p>
+      
+      <p><strong>Party</strong> and <strong>Parties</strong> mean each party named on the front sheet and both of them together.</p>
+      
+      <p><strong>Planning Permission</strong> means a planning permission granted for the Development Land to which the BNG Units relate.</p>
+      
+      <p><strong>Purchase Price</strong> has the meaning on the front sheet and is payable as provided in these Conditions.</p>
+      
+      <p><strong>Transaction fee</strong> means the administration/transaction fee (if applicable) identified on the front sheet.</p>
+      
+      <p><strong>VAT</strong> means value added tax chargeable under the <strong>Value Added Tax Act 1994</strong> and any similar replacement tax.</p>
+      
+      <p><strong>Working Days</strong> means <strong>Monday to Friday</strong> other than <strong>Good Friday</strong> and the period <strong>24 December through 2 January (inclusive)</strong>.</p>
+      
+      <p><strong>Interpretation.</strong> Clause headings are for convenience only and do not affect interpretation. Words in the singular include the plural and vice versa. References to legislation include amendments and re‑enactments.</p>
+      
+      <hr/>
+      
+      <h3>2. AGREEMENT and Notice of Allocation</h3>
+      <p>2.1 In consideration of the <strong>Exchange Payment</strong> paid on the date of this Agreement, Wild Capital agrees to allocate the <strong>BNG Units</strong> to the <strong>Development Land</strong> on and subject to these Conditions <strong>[this Clause 2.1 applies only if ticked "Yes" on the front sheet]</strong>.</p>
+      <p>2.2 Within <strong>5 Working Days</strong> of receipt by Wild Capital of (a) the <strong>Purchase Price</strong> by <strong>Electronic Payment</strong> and (b) a copy of the relevant <strong>Planning Permission decision notice</strong> (and any associated information reasonably required), Wild Capital will:<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;(a) <strong>serve the Notice of Allocation</strong> on the <strong>Determining Authority</strong>; and<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;(b) <strong>update/apply to update the Gain Site Register</strong> to record the allocation of BNG Units to the <strong>Development Land</strong>.</p>
+      
+      <hr/>
+      
+      <h3>3. TITLE and Assignment</h3>
+      <p>3.1 The Developer accepts Wild Capital's title to the <strong>Mitigation Site</strong> and shall not raise requisitions or object to title. The Developer shall not register or lodge any notice, restriction or other entry against the <strong>Mitigation Site</strong>.</p>
+      <p>3.2 This Agreement is <strong>personal</strong> to the Developer. The Developer shall not <strong>assign, transfer, charge or subcontract</strong> any right or obligation under this Agreement. Wild Capital is only obliged to transfer BNG Units to the <strong>owner of the Development Land</strong>.</p>
+      
+      <hr/>
+      
+      <h3>4. MATTERS AFFECTING THE PROPERTY</h3>
+      <p>4.1 Allocation and registration of BNG Units is subject to and in accordance with the <strong>Conservation Covenant</strong>.</p>
+      
+      <hr/>
+      
+      <h3>5. COSTS</h3>
+      <p>5.1 The Developer shall pay <strong>£500 plus VAT</strong> towards Wild Capital's administration costs on or before the date of this Agreement.</p>
+      
+      <hr/>
+      
+      <h3>6. VAT</h3>
+      <p>6.1 All sums payable are <strong>exclusive of VAT</strong>. If VAT is chargeable, it shall be paid in addition at the rate in force when the relevant supply is made.</p>
+      
+      <hr/>
+      
+      <h3>7. ENTIRE AGREEMENT</h3>
+      <p>7.1 This Agreement constitutes the entire agreement between the Parties and supersedes any prior discussions or representations (whether innocent or negligent) relating to its subject matter. Each Party acknowledges that it has not relied on any statement not expressly set out in this Agreement.</p>
+      
+      <hr/>
+      
+      <h3>8. CONFIDENTIAL INFORMATION</h3>
+      <p>8.1 Each Party shall keep confidential and not disclose to any person any confidential information concerning the business, affairs, customers, clients or suppliers of the other Party, except to its <strong>Representatives</strong> who need to know such information for the purposes of performing this Agreement and provided such Representatives are bound by confidentiality obligations no less strict.</p>
+      <p>8.2 A Party may disclose confidential information if and to the extent required by law or a competent authority, <strong>provided that this Agreement itself shall not be disclosed to the Determining Authority</strong>.</p>
+      <p>8.3 Each Party acknowledges that damages alone may not be an adequate remedy and that the other Party shall be entitled to equitable relief.</p>
+      
+      <hr/>
+      
+      <h3>9. JOINT AND SEVERAL LIABILITY</h3>
+      <p>9.1 Where the <strong>Developer</strong> comprises more than one person, their liability is <strong>joint and several</strong>. Wild Capital may compromise or release one or more of them without affecting the liability of the others.</p>
+      
+      <hr/>
+      
+      <h3>10. THIRD PARTY RIGHTS</h3>
+      <p>10.1 The <strong>Contracts (Rights of Third Parties) Act 1999</strong> does not apply to this Agreement.</p>
+      
+      <hr/>
+      
+      <h3>11. GOVERNING LAW AND JURISDICTION</h3>
+      <p>11.1 This Agreement and any non‑contractual obligations arising out of or in connection with it are governed by the <strong>law of England</strong>. The courts of <strong>England</strong> have <strong>exclusive jurisdiction</strong> to settle any dispute.</p>
+      
+      <hr/>
+      
+      <p style="text-align: center; margin: 30px 0;"><strong>THIS AGREEMENT HAS BEEN ENTERED INTO on the date stated at the beginning of it.</strong></p>
+      
+      <hr style="page-break-after: always;"/>
+      
+      <h1><strong>SCHEDULE</strong> — <strong>RESERVATION AND PURCHASE PROVISIONS</strong></h1>
+      <p><em>(Apply only if selected "Yes" on the front sheet.)</em></p>
+      
+      <h2>A. Schedule Definitions</h2>
+      <p><strong>Completion</strong> means completion of the purchase of the BNG Units pursuant to this Schedule.</p>
+      <p><strong>Completion Date</strong> means the date falling <strong>10 Working Days</strong> after valid service of an <strong>Exercise Notice</strong>.</p>
+      <p><strong>Completion Notice</strong> means the notice issued by Wild Capital to the Developer confirming completion together with: a copy of the <strong>Notice of Allocation</strong>, details of the <strong>Gain Site Register</strong> application/entry, and reasonable evidence of submission.</p>
+      <p><strong>Exercise Notice</strong> means a notice served by the Developer exercising the right to purchase all of the BNG Units reserved under this Schedule.</p>
+      <p><strong>Notice to Complete</strong> means a notice served following failure to complete by the Completion Date, making time of the essence and specifying a period of <strong>10 Working Days</strong> to complete.</p>
+      <p><strong>Reservation Period</strong> means the period stated on the front sheet (or, if none is stated, <strong>[●] Working Days</strong> beginning on the date of this Agreement).</p>
+      
+      <hr/>
+      
+      <h2>B. Reservation</h2>
+      <p>B1. The <strong>Reservation Fee</strong> (if any) is payable by <strong>Electronic Payment</strong> on the date of this Agreement and is <strong>non‑refundable</strong>.</p>
+      <p>B2. Upon receipt of the Reservation Fee, Wild Capital will reserve the <strong>BNG Units</strong> for the <strong>Reservation Period</strong>.</p>
+      <p>B3. The right to purchase <strong>lapses</strong> if not exercised before the <strong>Longstop Date</strong> (if any).</p>
+      
+      <hr/>
+      
+      <h2>C. Wild Capital Obligations</h2>
+      <p>C1. If reasonably required to support the <strong>Application</strong> and requested before the <strong>Longstop Date</strong>, Wild Capital will provide <strong>one planning pack</strong> within <strong>5 Working Days</strong> of request (one pack only; the Developer must supply reasonably required particulars).</p>
+      <p>C2. Subject to valid exercise of the right to purchase and except as provided at paragraph <strong>L</strong>, Wild Capital shall keep the BNG Units available for allocation until <strong>Completion</strong>.</p>
+      
+      <hr/>
+      
+      <h2>D. Right to Purchase</h2>
+      <p>D1. The Developer may exercise the right to purchase by serving an <strong>Exercise Notice</strong> identifying the <strong>Development Land</strong> (by address and plan), confirming the <strong>planning reference</strong>, and attaching the <strong>decision notice</strong>.</p>
+      <p>D2. Service of a valid Exercise Notice creates a <strong>binding contract</strong> for the sale of the BNG Units at the <strong>Purchase Price</strong> and on the terms of this Schedule.</p>
+      
+      <hr/>
+      
+      <h2>E. Completion</h2>
+      <p>E1. <strong>Completion</strong> shall take place on the <strong>Completion Date</strong>. The Developer shall pay the <strong>Transaction fee</strong> (if applicable) by <strong>Electronic Payment</strong> on or before the Completion Date.</p>
+      <p>E2. Upon receipt of all monies due, Wild Capital shall:<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;(a) <strong>serve the Notice of Allocation</strong> on the <strong>Determining Authority</strong>; and<br/>
+      &nbsp;&nbsp;&nbsp;&nbsp;(b) issue the <strong>Completion Notice</strong> to the Developer.</p>
+      <p>E3. Within <strong>5 Working Days</strong> of the later of the <strong>Completion Date</strong> and payment of the <strong>Transaction fee</strong>, Wild Capital shall apply to <strong>Natural England</strong> for registration of the allocation on the <strong>Biodiversity Gain Site Register</strong> and shall provide confirmation details to the Developer as soon as reasonably practicable.</p>
+      
+      <hr/>
+      
+      <h2>F. Termination and Insolvency</h2>
+      <p>F1. The Developer may terminate this Schedule during the <strong>Reservation Period</strong> by giving <strong>5 Working Days'</strong> written notice to Wild Capital.</p>
+      <p>F2. Either Party may terminate prior to <strong>Completion</strong> on written notice if the other Party is subject to an insolvency event, including administration, receivership, winding‑up, bankruptcy, or any analogous procedure under the <strong>Insolvency Act 1986</strong> (as amended).</p>
+      
+      <hr/>
+      
+      <h2>G. Disputes</h2>
+      <p>G1. Any dispute (other than a question of law or contractual interpretation) shall be referred to a <strong>Specialist</strong> with at least <strong>10 years'</strong> relevant professional experience within a reasonable distance of the <strong>Mitigation Site</strong>. If the Parties cannot agree the Specialist within <strong>10 Working Days</strong>, either Party may request nomination by an appropriate professional body (or the <strong>Law Society</strong>).</p>
+      <p>G2. The Specialist shall receive written representations from the Parties and aim to issue a <strong>reasoned written decision within 30 Working Days</strong> of appointment. The Specialist's decision shall be final and binding save for manifest error.</p>
+      <p>G3. Matters of law or contractual interpretation may be referred to the courts of <strong>England</strong>.</p>
+      
+      <hr/>
+      
+      <h2>H. Notices</h2>
+      <p>H1. Notices under this Schedule shall be served by <strong>first‑class post</strong>, <strong>hand delivery</strong>, or <strong>email</strong>.</p>
+      <p>H2. The Developer's address and email are as set out on the front sheet.</p>
+      <p>H3. Wild Capital's details: <strong>Lynton House, 7–12 Tavistock Square, London, WC1H 9BQ</strong>, attention <strong>Head of Legal</strong>, email <strong>legal@wild-capital.co.uk</strong>.</p>
+      <p>H4. Deemed service: by post—the earlier of actual receipt or <strong>2 Working Days</strong> after posting; by hand—on delivery; by email—on transmission if sent on a Working Day before 5pm recipient local time.</p>
+      
+      <hr/>
+      
+      <h2>I. Force Majeure</h2>
+      <p>I1. Neither Party shall be liable for any delay or failure to perform caused by an event beyond its reasonable control, provided it notifies the other Party and uses reasonable endeavours to mitigate.</p>
+      <p>I2. If a material obligation cannot be performed due to such event, either Party may terminate on <strong>2 weeks'</strong> written notice.</p>
+      
+      <hr/>
+      
+      <h2>J. Limitation of Liability</h2>
+      <p>J1. Subject to paragraph <strong>J3</strong>, each Party's <strong>aggregate liability</strong> under or in connection with this Schedule is <strong>capped at the sum of the Reservation Fee (if any) and the Purchase Price</strong>.</p>
+      <p>J2. Neither Party shall be liable for any <strong>consequential or special loss</strong>, or for loss of <strong>profit, revenue, production, contract, opportunity, anticipated savings, reputation/goodwill</strong>, or <strong>wasted expenditure</strong>.</p>
+      <p>J3. Nothing in this Schedule limits or excludes liability for <strong>death or personal injury</strong>, <strong>fraud</strong>, or any liability which cannot be limited or excluded by law.</p>
+      
+      <hr/>
+      
+      <h2>K. Developer's Failure to Complete</h2>
+      <p>K1. If the Developer fails to complete on the <strong>Completion Date</strong>, Wild Capital may serve a <strong>Notice to Complete</strong> making time of the essence and specifying a period of <strong>10 Working Days</strong> for completion.</p>
+      <p>K2. If the Developer still fails to complete: (a) the Developer shall pay <strong>£500 + VAT</strong> towards Wild Capital's solicitors' <strong>additional</strong> costs and indemnify Wild Capital's administration costs; (b) Wild Capital may <strong>rescind</strong> the contract, <strong>forfeit</strong> the <strong>Reservation Fee</strong> (if any), <strong>resell</strong> the BNG Units, and <strong>claim damages</strong>; and (c) all other rights are reserved.</p>
+      
+      <hr/>
+      
+      <h2>L. Default Interest</h2>
+      <p>L1. Any sum not paid when due shall bear <strong>interest at 8% above the Bank of England base rate</strong>, accruing daily from the due date until payment, both before and after judgment.</p>
+      
+      <hr/>
+      
+      <h2>M. Non‑Circumvention</h2>
+      <p>M1. The Developer (and its group and Representatives) shall not, without Wild Capital's prior written consent, pursue or procure BNG Units with any <strong>landholder</strong> or <strong>third party</strong> introduced by Wild Capital, nor solicit, induce, or respond to approaches in relation to such units other than through Wild Capital.</p>
+      
+      <hr/>
+      
+      <div class="metadata">
+        <h3>Document Information (not part of legal agreement)</h3>
+        
+        <p><strong>Contract Type Selected:</strong> {html_escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else 'Not specified')}</p>
+        
+        <p><strong>Important Dates (for reference only):</strong></p>
         <ul>
-          <li>Expected Determination date: {html_escape(answers.get('determinationDate') or '')}</li>
-          <li>BNG discharge hoped date: {html_escape(answers.get('dischargeDate') or '')}</li>
+          <li>Expected Determination date: {html_escape(answers.get('determinationDate') or 'Not specified')}</li>
+          <li>BNG discharge hoped date: {html_escape(answers.get('dischargeDate') or 'Not specified')}</li>
         </ul>
+        
+        <p><strong>Authorised Signatory:</strong> {html_escape(answers.get('authorisedName') or 'Not specified')} — {html_escape(answers.get('authorisedEmail') or 'Not specified')}</p>
+        
+        <p style="margin-top: 15px; font-style: italic;">Preview generated on {today_date} from contract data and the answers you provided. The metadata section above is for reference only and not part of the legal contract.</p>
       </div>
-
-      <div class="section small">
-        <strong>Authorised signatory</strong>
-        <p>{html_escape(answers.get('authorisedName') or '')} — {html_escape(answers.get('authorisedEmail') or '')}</p>
-      </div>
-
-      <div class="muted small">Preview generated from contract data and the answers you provided. These answers are not stored by this application.</div>
     </body>
     </html>
     """
