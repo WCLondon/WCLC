@@ -219,8 +219,9 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
         return placeholder
     
     # Extract contract values with fallbacks
-    developer_name = contract.get('developer_name') or contract.get('client_name') or '[Developer]'
-    developer_company_number = contract.get('developer_company_number') or '[●]'
+    # Use purchaser info from answers if provided, otherwise fall back to contract data
+    developer_name = answers.get('purchaserName') or contract.get('developer_name') or contract.get('client_name') or '[Developer]'
+    developer_company_number = answers.get('purchaserCompanyNumber') or contract.get('developer_company_number') or '[●]'
     development_land = contract.get('development_land') or contract.get('site_location') or '[●]'
     app_ref = answers.get('planningRef') or contract.get('application_reference') or '[●]'
     habitat_bank = contract.get('wild_capital_habitat_bank') or '[●]'
@@ -233,9 +234,9 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
             habitat = u.get("habitat_name") or u.get("habitat") or "habitat"
             units = u.get("units_required") or u.get("units") or "[●]"
             letter = chr(97 + idx)  # a, b, c, etc.
-            bng_units_html += f"<li>({letter}) <strong>{show(units)} {show(habitat)}</strong> biodiversity net gain <strong>offsite units</strong>;</li>"
+            bng_units_html += f"<li>({letter}) <strong>[{show(units, '')}] distinctiveness [{show(habitat, '')}]</strong> biodiversity net gain <strong>offsite units</strong>, and</li>"
     else:
-        bng_units_html = "<li>(a) <strong>[medium] distinctiveness [grassland]</strong> biodiversity net gain <strong>offsite units</strong>;</li><li>(b) <strong>[insert relevant units and distinctiveness]</strong>.</li>"
+        bng_units_html = "<li>(a) <strong>[medium] distinctiveness [grassland]</strong> biodiversity net gain <strong>offsite units</strong>, and</li><li>(b) <strong>[insert relevant units and distinctiveness]</strong>.</li>"
     
     conservation_covenant_date = contract.get('conservation_covenant_date') or '[●]'
     purchase_price = contract.get('purchase_price') or contract.get('total_with_admin') or '[●]'
@@ -243,10 +244,12 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
     transaction_fee = contract.get('transaction_fee') or '[●]'
     longstop_date = contract.get('longstop_date') or '[●]'
     
-    # Determine contract type for toggles
-    is_buy_now = answers.get('contractType') == 'buyNow'
-    schedule_applies = "No" if is_buy_now else "Yes"
-    clause_2_applies = "Yes" if is_buy_now else "No"
+    # Get toggle values from answers
+    reservation_fee_applies = answers.get('reservationFeeApplies', False)
+    transaction_fee_applies = answers.get('transactionFeeApplies', False)
+    longstop_date_applies = answers.get('longstopDateApplies', False)
+    schedule_applies = answers.get('scheduleApplies', False)
+    clause_2_applies = answers.get('clause2Applies', True)
     
     html = f"""
     <!DOCTYPE html>
@@ -311,6 +314,24 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
           border-top: 1px solid #000;
           margin: 20px 0;
         }}
+        table {{
+          width: 100%;
+          border-collapse: collapse;
+          margin: 20px 0;
+        }}
+        table, th, td {{
+          border: 1px solid #000;
+        }}
+        th {{
+          padding: 8px;
+          text-align: left;
+          font-weight: bold;
+          background-color: #f5f5f5;
+        }}
+        td {{
+          padding: 8px;
+          vertical-align: top;
+        }}
         .signature-block {{
           margin: 15px 0;
         }}
@@ -340,44 +361,91 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
       </style>
     </head>
     <body>
-      <h1><strong>BNG ALLOCATION AGREEMENT</strong></h1>
+      <p><strong>This Contract is dated [{today_date}]</strong></p>
       
-      <p><strong>This Contract is dated {today_date}</strong> and is made on the following terms <strong>and incorporating the Conditions and, where applicable, the Schedule.</strong></p>
+      <p>and made on the following terms and incorporating the Conditions and, where Applicable, the Schedule:</p>
       
-      <hr/>
-      
-      <h2>PARTIES</h2>
-      <ul style="list-style-type: none; padding-left: 0;">
-        <li><strong>WILD CAPITAL 1 LTD</strong> (company number <strong>14747595</strong>) of <strong>Lynton House, 7–12 Tavistock Square, London, WC1H 9BQ</strong> ("<strong>Wild Capital</strong>").</li>
-        <li><strong>{show(developer_name)}</strong> (company number <strong>{show(developer_company_number)}</strong>) whose registered office is at <strong>{show(development_land)}</strong> ("<strong>Developer</strong>").</li>
-      </ul>
-      
-      <p><strong>Application Reference Number:</strong> <strong>{show(app_ref)}</strong></p>
-      
-      <p><strong>BNG Units</strong> (from the <strong>Wild {show(habitat_bank)} Habitat Bank</strong>):</p>
-      <ul style="list-style-type: none; padding-left: 20px;">
-        {bng_units_html}
-      </ul>
-      
-      <p><strong>Development Land:</strong> <strong>{show(development_land)}</strong></p>
-      
-      <p><strong>Wild Capital Habitat Bank(s):</strong> <strong>{show(habitat_bank)}</strong></p>
-      
-      <p><strong>Conservation Covenant</strong> means a conservation covenant dated <strong>{show(conservation_covenant_date)}</strong> and made between <strong>{show(developer_name)}</strong> in respect of the <strong>Wild Capital Habitat Bank(s)</strong>.</p>
-      
-      <p><strong>Purchase Price</strong> means <strong>{show(purchase_price)}</strong> <strong>(exclusive of VAT)</strong> <strong>[and Clause 2.1 is not applicable]</strong>.</p>
-      
-      <p><strong>Reservation Fee:</strong> <strong>{show(reservation_fee)}</strong> <strong>(exclusive of VAT)</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
-      
-      <p><strong>Transaction fee:</strong> <strong>{show(transaction_fee)}</strong> <strong>(exclusive of VAT)</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
-      
-      <p><strong>Longstop Date:</strong> <strong>{show(longstop_date)}</strong> <strong>[or]</strong> <strong>[Not applicable]</strong>.</p>
-      
-      <p><strong>Applicability toggles (tick/strike one in final copy):</strong></p>
-      <ul style="list-style-type: none; padding-left: 0;">
-        <li>- The terms of the <strong>Schedule</strong> apply to this agreement — <strong>{schedule_applies}</strong></li>
-        <li>- The terms of <strong>Clause 2.1 and 2.2</strong> of the Conditions apply to this agreement — <strong>{clause_2_applies}</strong></li>
-      </ul>
+      <table>
+        <tr>
+          <th rowspan="2" style="width: 30%;">Parties</th>
+          <td><strong>(1) WILD CAPITAL 1 LTD</strong> (company number <strong>14747595</strong>) of Lynton House, 7–12 Tavistock Square, London, WC1H 9BQ ("<strong>Wild Capital</strong>"); and</td>
+        </tr>
+        <tr>
+          <td><strong>(2) {show(developer_name)}</strong> (company number <strong>{show(developer_company_number)}</strong>) whose registered office is at <strong>{show(development_land)}</strong> ("<strong>Developer</strong>").</td>
+        </tr>
+        
+        <tr>
+          <th>Application Reference Number</th>
+          <td>{show(app_ref)}</td>
+        </tr>
+        
+        <tr>
+          <th>BNG Units</th>
+          <td>
+            From the Wild <strong>{show(habitat_bank)}</strong> Habitat Bank:
+            <ul style="margin: 5px 0; padding-left: 20px;">
+              {bng_units_html}
+            </ul>
+          </td>
+        </tr>
+        
+        <tr>
+          <th>Development Land</th>
+          <td>{show(development_land)}</td>
+        </tr>
+        
+        <tr>
+          <th>Wild Capital Habitat Bank(s)</th>
+          <td>{show(habitat_bank)}</td>
+        </tr>
+        
+        <tr>
+          <th>Conservation Covenant</th>
+          <td>means a conservation covenant dated <strong>{show(conservation_covenant_date)}</strong> and made between <strong>{show(developer_name)}</strong> in respect of the Wild Capital Habitat Bank(s).</td>
+        </tr>
+        
+        <tr>
+          <th>Purchase Price</th>
+          <td>means <strong>{show(purchase_price)}</strong> (<strong>{show('[[£ amount in words]]', '[[£ amount in words]]')}</strong>) <strong>(exclusive of VAT)</strong> {'<strong>[and Clause 2.1 is not applicable]</strong>' if not clause_2_applies else ''}</td>
+        </tr>
+        
+        <tr>
+          <th>Reservation Fee</th>
+          <td><strong>{show(reservation_fee) if reservation_fee_applies else '[●]'}</strong> <strong>(exclusive of VAT)</strong> {'<strong>[or]</strong> <strong>[Not applicable]</strong>' if not reservation_fee_applies else ''}</td>
+        </tr>
+        
+        <tr>
+          <th>Transaction Fee</th>
+          <td><strong>{show(transaction_fee) if transaction_fee_applies else '[●]'}</strong> <strong>(exclusive of VAT)</strong> {'<strong>[or]</strong> <strong>[Not applicable]</strong>' if not transaction_fee_applies else ''}</td>
+        </tr>
+        
+        <tr>
+          <th>Longstop Date</th>
+          <td><strong>{show(longstop_date) if longstop_date_applies else '[●]'}</strong> {'<strong>[or]</strong> <strong>[Not applicable]</strong>' if not longstop_date_applies else ''}</td>
+        </tr>
+        
+        <tr>
+          <th>The terms of the Schedule apply to this agreement</th>
+          <td><strong>{'Yes' if schedule_applies else 'No'}</strong></td>
+        </tr>
+        
+        <tr>
+          <th>The terms of Clause 2.1 and 2.2 of the Conditions apply to this agreement</th>
+          <td><strong>{'Yes' if clause_2_applies else 'No'}</strong></td>
+        </tr>
+        
+        <tr>
+          <th>Signatures</th>
+          <td>
+            <div class="signature-block">
+              <p>Signed for and on behalf of Wild Capital: <span class="signature-line">&nbsp;</span></p>
+            </div>
+            <div class="signature-block">
+              <p>Signed for and on behalf of the Developer: <span class="signature-line">&nbsp;</span></p>
+            </div>
+          </td>
+        </tr>
+      </table>
       
       <hr/>
       
@@ -666,6 +734,15 @@ if ref and st.session_state.get_submission:
             authorised_name = st.text_input("Name of the authorised signatory")
             authorised_email = st.text_input("Email address of the authorised signatory")
             contract_type = st.radio("Preferred contract type", options=["Buy It Now", "Reservation and Purchase"], index=0)
+            
+            st.markdown("### Applicability Toggles")
+            st.markdown("Select which terms apply to this agreement:")
+            reservation_fee_applies = st.checkbox("Reservation Fee applies", value=False)
+            transaction_fee_applies = st.checkbox("Transaction Fee applies", value=False)
+            longstop_date_applies = st.checkbox("Longstop Date applies", value=False)
+            schedule_applies = st.checkbox("The terms of the Schedule apply to this agreement", value=(contract_type == "Reservation and Purchase"))
+            clause_2_applies = st.checkbox("The terms of Clause 2.1 and 2.2 apply to this agreement", value=(contract_type == "Buy It Now"))
+            
             submitted = st.form_submit_button("Update preview (not stored)")
 
         if submitted:
@@ -679,6 +756,11 @@ if ref and st.session_state.get_submission:
                 "authorisedName": authorised_name,
                 "authorisedEmail": authorised_email,
                 "contractType": "buyNow" if contract_type == "Buy It Now" else "reservation",
+                "reservationFeeApplies": reservation_fee_applies,
+                "transactionFeeApplies": transaction_fee_applies,
+                "longstopDateApplies": longstop_date_applies,
+                "scheduleApplies": schedule_applies,
+                "clause2Applies": clause_2_applies,
             }
 
             html = render_contract_html(contract, answers)
