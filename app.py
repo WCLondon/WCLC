@@ -11,6 +11,7 @@ Streamlit app: Wild Capital — Contract first-page filler
 
 import os
 import json
+from datetime import datetime
 from html import escape as html_escape
 from typing import Any, Dict, List, Optional
 
@@ -207,7 +208,209 @@ def render_contract_html(contract: Dict, answers: Dict) -> str:
     """
     Produce an HTML snippet for the first page with the contract fields + answers.
     Keep it simple, printable by browser Print -> Save as PDF.
+    Formatted to match legal contract standards.
     """
+    def show(val):
+        return val if val not in (None, "", []) else "&nbsp;________________________&nbsp;"
+    
+    # Get today's date in proper format for legal contracts
+    today_date = datetime.now().strftime("%d %B %Y")
+
+    # bng units list items
+    bng_html = ""
+    bngs = contract.get("bng_units") or []
+    if bngs:
+        for u in bngs:
+            habitat = u.get("habitat_name") or u.get("habitat") or "habitat"
+            units = u.get("units_required") or u.get("units") or ""
+            bng_html += f"<li style='margin-bottom: 8px;'>{units} {html_escape(habitat)}</li>"
+    else:
+        bng_html = "<li style='margin-bottom: 8px;'>________________________ distinctiveness ________________________ biodiversity net gain offsite units;</li><li style='margin-bottom: 8px;'>________________________</li>"
+
+    html = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8"/>
+      <title>Allocation Agreement — {html_escape(contract.get('application_reference') or '')}</title>
+      <style>
+        @page {{
+          size: A4;
+          margin: 2.5cm;
+        }}
+        body {{
+          font-family: 'Times New Roman', Times, serif;
+          font-size: 12pt;
+          line-height: 1.6;
+          margin: 0;
+          padding: 20px;
+          color: #000;
+          max-width: 21cm;
+          margin: 0 auto;
+        }}
+        h1 {{
+          text-align: center;
+          font-size: 16pt;
+          font-weight: bold;
+          margin: 20px 0;
+          text-transform: uppercase;
+        }}
+        h2 {{
+          text-align: center;
+          font-size: 14pt;
+          font-weight: bold;
+          margin: 15px 0;
+        }}
+        h3 {{
+          font-size: 12pt;
+          font-weight: bold;
+          margin: 15px 0 10px 0;
+          text-decoration: underline;
+        }}
+        h4 {{
+          font-size: 12pt;
+          font-weight: bold;
+          margin: 12px 0 6px 0;
+        }}
+        p {{
+          margin: 8px 0;
+          text-align: justify;
+        }}
+        .defined-term {{
+          font-weight: bold;
+        }}
+        .party-details {{
+          margin-left: 40px;
+        }}
+        ol {{
+          margin: 8px 0;
+          padding-left: 30px;
+        }}
+        li {{
+          margin-bottom: 6px;
+        }}
+        .signature-block {{
+          margin-top: 30px;
+          page-break-inside: avoid;
+        }}
+        .signature-line {{
+          margin: 20px 0;
+          border-bottom: 1px solid #000;
+          width: 60%;
+          display: inline-block;
+        }}
+        .metadata {{
+          margin-top: 30px;
+          padding-top: 20px;
+          border-top: 2px solid #ccc;
+          font-size: 10pt;
+          color: #666;
+        }}
+        .metadata-section {{
+          margin: 10px 0;
+        }}
+        hr {{
+          border: none;
+          border-top: 1px solid #000;
+          margin: 20px 0;
+        }}
+        @media print {{
+          body {{
+            padding: 0;
+          }}
+          .metadata {{
+            page-break-before: always;
+          }}
+        }}
+      </style>
+    </head>
+    <body>
+      <h1>Allocation Agreement</h1>
+      
+      <h2>This Contract is dated {today_date}</h2>
+
+      <p>and made on the following terms and incorporating the Conditions and, where Applicable, the Schedule:</p>
+
+      <h3>Parties</h3>
+      
+      <p class="party-details">
+        <span class="defined-term">WILD CAPITAL 1 LTD</span> (company number 14747595) of Lynton House, 7-12 Tavistock Square, London, WC1H 9BQ ("<span class="defined-term">Wild Capital</span>"); and
+      </p>
+      
+      <p class="party-details">
+        <span class="defined-term">{html_escape(contract.get('developer_name') or '________________________')}</span> (company number {html_escape(contract.get('developer_company_number') or '________________________')}) whose registered office is at {html_escape(contract.get('development_land') or '________________________')} ("<span class="defined-term">Developer</span>").
+      </p>
+
+      <h3>Defined Terms</h3>
+
+      <h4>Application Reference Number</h4>
+      <p>{html_escape(answers.get('planningRef') or contract.get('application_reference') or '________________________')}</p>
+
+      <h4>BNG Units</h4>
+      <p>From the Wild Capital {html_escape(contract.get('wild_capital_habitat_bank') or '________________________')} Habitat Bank:</p>
+      <ol>
+        {bng_html}
+      </ol>
+
+      <h4>Development Land</h4>
+      <p>{html_escape(contract.get('development_land') or '________________________')}</p>
+
+      <h4>Wild Capital Habitat Bank(s)</h4>
+      <p>{html_escape(contract.get('wild_capital_habitat_bank') or '________________________')}</p>
+
+      <h4>Conservation Covenant</h4>
+      <p>means a conservation covenant dated {html_escape(contract.get('conservation_covenant_date') or '________________________')} and made between {html_escape(contract.get('developer_name') or '________________________')} in respect of the Wild Capital Habitat Bank(s).</p>
+
+      <h4>Purchase Price</h4>
+      <p>means {html_escape(contract.get('purchase_price') or contract.get('total_with_admin') or '________________________')} (exclusive of VAT)</p>
+
+      <h4>Reservation Fee</h4>
+      <p>{html_escape(contract.get('reservation_fee') or '________________________')}</p>
+
+      <h4>Transaction Fee</h4>
+      <p>{html_escape(contract.get('transaction_fee') or '________________________')}</p>
+
+      <h4>Longstop Date</h4>
+      <p>{html_escape(contract.get('longstop_date') or '________________________')}</p>
+
+      <div class="signature-block">
+        <h3>Signatures</h3>
+        
+        <p>Signed for and on behalf of <span class="defined-term">Wild Capital</span>:</p>
+        <p><span class="signature-line">&nbsp;</span></p>
+        
+        <p>Signed for and on behalf of the <span class="defined-term">Developer</span>:</p>
+        <p><span class="signature-line">&nbsp;</span></p>
+      </div>
+
+      <div class="metadata">
+        <div class="metadata-section">
+          <strong>Contract Type Selected:</strong> {html_escape('Buy It Now' if answers.get('contractType') == 'buyNow' else 'Reservation and Purchase' if answers.get('contractType') == 'reservation' else 'Not specified')}
+        </div>
+        
+        <div class="metadata-section">
+          <strong>Important Dates (for reference only):</strong>
+          <ul style="margin: 5px 0; padding-left: 20px;">
+            <li>Expected Determination date: {html_escape(answers.get('determinationDate') or 'Not specified')}</li>
+            <li>BNG discharge hoped date: {html_escape(answers.get('dischargeDate') or 'Not specified')}</li>
+          </ul>
+        </div>
+
+        <div class="metadata-section">
+          <strong>Authorised Signatory:</strong>
+          <p style="margin: 5px 0;">{html_escape(answers.get('authorisedName') or 'Not specified')} — {html_escape(answers.get('authorisedEmail') or 'Not specified')}</p>
+        </div>
+
+        <div class="metadata-section" style="margin-top: 15px; font-style: italic;">
+          <p>Preview generated on {today_date} from contract data and the answers you provided. The metadata section above is for reference only and not part of the legal contract.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+    """
+    return html
+
+
     def show(val):
         return val if val not in (None, "", []) else "&nbsp;________________________&nbsp;"
 
