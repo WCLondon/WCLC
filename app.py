@@ -2,7 +2,9 @@
 """
 Streamlit app: Wild Capital — Contract first-page filler
 
-- Connects to Supabase to fetch a submission by reference_number (table: submissions)
+- Connects to a database (PostgreSQL or Supabase) to fetch a submission by reference_number
+- Supports direct PostgreSQL connection via database.url (recommended) or legacy Supabase client
+- Table name is configurable (defaults to submissions_attio)
 - Presents a form with additional questions (not stored)
 - Renders a first-page contract preview and lets user download HTML (print to PDF via browser)
 """
@@ -20,19 +22,57 @@ except Exception:
     create_client = None
     Client = Any
 
+# SQLAlchemy for direct PostgreSQL connection
+try:
+    from sqlalchemy import create_engine, text
+    from sqlalchemy.engine import Engine
+except Exception:
+    create_engine = None
+    text = None
+    Engine = Any
+
 st.set_page_config(page_title="Wild Capital — Contract filler", layout="wide")
 
 
 # ---------- Helpers ----------
 
-def get_supabase_client():
+def get_database_connection():
     """
-    Prefer st.secrets, then environment variables.
-    Set in Streamlit Cloud as secrets: SUPABASE_URL and SUPABASE_KEY
+    Try to establish a database connection using either:
+    1. Direct PostgreSQL connection via database.url (preferred)
+    2. Legacy Supabase client via SUPABASE_URL and SUPABASE_KEY
+    
+    Returns a tuple: (connection_type, connection_object)
+    where connection_type is either 'postgres' or 'supabase'
     """
+    # First, try to get PostgreSQL connection string from secrets
+    db_url = None
+    try:
+        db_url = st.secrets["database"]["url"]
+    except Exception:
+        pass
+    
+    if not db_url:
+        try:
+            db_url = os.getenv("DATABASE_URL")
+        except Exception:
+            pass
+    
+    # If we have a PostgreSQL URL, use that
+    if db_url:
+        if create_engine is None:
+            st.error("SQLAlchemy not installed. Please install sqlalchemy and psycopg.")
+            return None, None
+        try:
+            engine = create_engine(db_url)
+            return 'postgres', engine
+        except Exception as e:
+            st.error(f"Failed to create PostgreSQL connection: {e}")
+            return None, None
+    
+    # Fall back to legacy Supabase client
     url = None
     key = None
-    # streamlit secrets take precedence
     try:
         url = st.secrets["SUPABASE_URL"]
         key = st.secrets["SUPABASE_KEY"]
@@ -41,14 +81,30 @@ def get_supabase_client():
         key = os.getenv("SUPABASE_KEY")
 
     if not url or not key:
-        st.warning("SUPABASE_URL and SUPABASE_KEY not found in st.secrets or environment.")
-        return None
+        st.warning("Neither database.url nor SUPABASE_URL/SUPABASE_KEY found in st.secrets or environment.")
+        return None, None
 
     if create_client is None:
         st.error("supabase package not installed. See requirements.txt and install it.")
-        return None
+        return None, None
 
-    return create_client(url, key)
+    return 'supabase', create_client(url, key)
+
+
+def get_table_name():
+    """
+    Get the table name from secrets or environment, defaulting to 'submissions_attio'
+    """
+    table_name = None
+    try:
+        table_name = st.secrets.get("table_name")
+    except Exception:
+        pass
+    
+    if not table_name:
+        table_name = os.getenv("TABLE_NAME")
+    
+    return table_name or "submissions_attio"
 
 
 def safe_parse(v: Any) -> Optional[Any]:
@@ -72,34 +128,51 @@ def safe_parse(v: Any) -> Optional[Any]:
             return s
 
 
-def fetch_submission_by_ref(supabase: Client, ref: str) -> Optional[Dict]:
+def fetch_submission_by_ref(conn_type: str, conn: Any, ref: str, table_name: str = "submissions_attio") -> Optional[Dict]:
     """
-    Query the 'submissions' table by reference_number.
+    Query the submissions table by reference_number.
+    Supports both PostgreSQL (via SQLAlchemy) and Supabase clients.
     Returns a parsed dictionary or None.
     """
-    if not supabase:
+    if not conn:
         return None
+    
     try:
-        resp = supabase.table("submissions").select("*").eq("reference_number", ref).limit(1).execute()
+        if conn_type == 'postgres':
+            # Use SQLAlchemy to query PostgreSQL directly
+            with conn.connect() as connection:
+                query = text(f"SELECT * FROM {table_name} WHERE reference_number = :ref LIMIT 1")
+                result = connection.execute(query, {"ref": ref})
+                row = result.mappings().fetchone()
+                if not row:
+                    return None
+                # Convert to dict
+                row = dict(row)
+        elif conn_type == 'supabase':
+            # Use Supabase client
+            resp = conn.table(table_name).select("*").eq("reference_number", ref).limit(1).execute()
+            # supabase-py returns a dict with 'data' key
+            data = None
+            try:
+                data = resp.get("data", None) if isinstance(resp, dict) else getattr(resp, "data", None)
+            except Exception:
+                data = resp
+
+            if not data:
+                return None
+            if isinstance(data, list):
+                row = data[0] if data else None
+            else:
+                row = data
+
+            if not row:
+                return None
+        else:
+            st.error(f"Unknown connection type: {conn_type}")
+            return None
+            
     except Exception as e:
-        st.error(f"Supabase query failed: {e}")
-        return None
-
-    # supabase-py returns a dict with 'data' key
-    data = None
-    try:
-        data = resp.get("data", None) if isinstance(resp, dict) else getattr(resp, "data", None)
-    except Exception:
-        data = resp
-
-    if not data:
-        return None
-    if isinstance(data, list):
-        row = data[0] if data else None
-    else:
-        row = data
-
-    if not row:
+        st.error(f"Database query failed: {e}")
         return None
 
     # Parse JSON-ish columns
@@ -249,9 +322,10 @@ if "get_submission" not in st.session_state:
     st.session_state.get_submission = False
 
 if ref and st.session_state.get_submission:
-    supabase = get_supabase_client()
+    conn_type, conn = get_database_connection()
+    table_name = get_table_name()
     with st.spinner("Fetching submission..."):
-        contract = fetch_submission_by_ref(supabase, ref.strip())
+        contract = fetch_submission_by_ref(conn_type, conn, ref.strip(), table_name)
     if not contract:
         st.error("Submission not found or an error occurred.")
     else:
